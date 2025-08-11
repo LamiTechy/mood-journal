@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Mood Journal</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(to bottom right, #e0f7fa, #fce4ec);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-top: 60px;
+    }
+
+    .header {
+      font-size: 24px;
+      font-weight: bold;
+      color: #444;
+      margin-bottom: 35px;
+    }
+
+    .mood-card {
+      background: #fff;
+      border-radius: 15px;
+      padding: 30px;
+      width: 90%;
+      max-width: 400px;
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .mood-icon {
+      background: #80deea;
+      color: white;
+      font-size: 40px;
+      border-radius: 50%;
+      width: 70px;
+      height: 70px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: absolute;
+      top: -35px;
+    }
+
+    .input-box {
+    margin-top: 50px;
+      width: 100%;
+    }
+
+    .input-box textarea {
+      width: 100%;
+      padding: 15px;
+      border-radius: 10px;
+      border: 1px solid #ccc;
+      resize: none;
+      font-size: 16px;
+    }
+
+    .input-box button {
+      margin-top: 15px;
+      width: 100%;
+      background: #80deea;
+      color: white;
+      padding: 10px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    .history {
+      margin-top: 30px;
+      width: 90%;
+      max-width: 400px;
+    }
+
+    .entry {
+      background: #fff;
+      border-left: 5px solid #80deea;
+      margin-bottom: 10px;
+      padding: 10px 15px;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+
+    .entry small {
+      display: block;
+      margin-bottom: 5px;
+      color: #666;
+    }
+    .entry-actions button {
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 16px;
+        padding: 5px;
+        border-radius: 5px;
+        transition: background-color 0.3s ease;
+    }
+    .entry-actions button.edit {
+      color: #4CAF50;
+    }
+    .entry-actions button.edit:hover{
+      background-color: #C6F4D6;
+    }
+    .entry-actions button.delete{
+      color: #f44336;
+    }
+    .entry-actions button.delete:hover{
+      background-color: #ffc0cb;
+    }
+
+    /* Existing styles... */
+
+/* Media queries for responsiveness */
+@media (max-width: 768px) {
+  /* For tablets and smaller screens */
+  .mood-card {
+    width: 95%;
+  }
+  .history {
+    width: 95%;
+  }
+}
+
+@media (max-width: 480px) {
+  /* For mobile phones */
+  body {
+    padding-top: 30px;
+  }
+  .header {
+    font-size: 20px;
+    margin-bottom: 20px;
+  }
+  .mood-card {
+    padding: 20px;
+  }
+  .mood-icon {
+    width: 50px;
+    height: 50px;
+    font-size: 30px;
+    top: -25px;
+  }
+  .input-box textarea {
+    padding: 10px;
+  }
+  .input-box button {
+    padding: 8px;
+  }
+  .entry {
+    padding: 8px 10px;
+  }
+}
+
+@media (max-width: 320px) {
+  /* For smaller mobile phones */
+  .header {
+    font-size: 18px;
+  }
+  .mood-card {
+    padding: 15px;
+  }
+  .mood-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 25px;
+    top: -20px;
+  }
+  .input-box textarea {
+    padding: 8px;
+  }
+  .input-box button {
+    padding: 6px;
+  }
+}
+
+  </style>
+</head>
+<body>
+
+  <div class="header">Mood Journal</div>
+
+  <div class="mood-card">
+    <div class="mood-icon">😊</div>
+    <div class="input-box">
+      <textarea id="moodText" rows="4" placeholder="How are you feeling today?"></textarea>
+      <button onclick="saveMood()">Save Mood</button>
+    </div>
+  </div>
+
+  <div class="history" id="history">
+    <!-- Mood entries will show here -->
+  </div>
+  <div id="playlist-recommendations"></div>
+  <script>
+const musicApiUrl = "https://open.spotify.com/embed/playlist/"
+const moodPlaylist = {
+  happy: "37i9dQZF1DX2sUQwD7tbmL",
+  sad: "37i9dQZF1DX3rxVfibe1L0",
+  relaxing: "1r4hnyOWexSvylLokn2hUa",
+  energetic: "37i9dQZF1EIfaqsf6o45ug",
+  focus: "37i9dQZF1DWZeKCadgRdKQ",
+  romantic: "37i9dQZF1EVGJJ3r00UGAt",
+  inspirational: "37i9dQZF1EIgcgFI04iZy3",
+  sleep: "5FI8rn340FgsOB7B8Ic0DZ",
+  party: "37i9dQZF1DXaXB8fQg7xif",
+
+  
+}
+
+    let editingId = null;
+
+    function saveMood() {
+        const moodText = document.getElementById('moodText').value.trim();
+      if (!moodText) return;
+
+      const date = new Date().toLocaleString();
+      const entry = { text: moodText, time: date };
+      let moodHistory = JSON.parse(localStorage.getItem('moodHistory')) || [];
+      if (editingId !== null) {
+        moodHistory[editingId].text = moodText;
+        editingId = null;
+      } else {
+         moodHistory.unshift(entry);
+      }
+     
+      localStorage.setItem('moodHistory', JSON.stringify(moodHistory));
+      document.getElementById('moodText').value = '';
+      displayHistory();
+      displayPlaylist(moodText);
+    }
+    function displayPlaylist(moodText) {
+      let mood = "sad"
+      if (moodText.includes("happy") || moodText.includes("good")) {
+    mood = "happy";
+  } else if (moodText.includes("relax") || moodText.includes("calm")) {
+    mood = "relaxing";
+  } else if (moodText.includes("energetic") || moodText.includes("workout")) {
+    mood = "energetic";
+  } else if (moodText.includes("focus") || moodText.includes("productivity")) {
+    mood = "focus";
+  } else if (moodText.includes("romantic") || moodText.includes("love")) {
+    mood = "romantic";
+  } else if (moodText.includes("inspirational") || moodText.includes("motivational")) {
+    mood = "inspirational";
+  } else if (moodText.includes("sleep") || moodText.includes("insomnia")) {
+    mood = "sleep";
+  } else if (moodText.includes("party") || moodText.includes("celebration")) {
+    mood = "party";
+  } else{
+    console.log("mood detected as sad")
+  }
+  console.log("playlist ID:, moodPlaylists[mood]")
+
+      const playlistUrl = `${musicApiUrl}${moodPlaylist[mood]}`;
+      const iframe = document.createElement("iframe");
+      iframe.src = playlistUrl;
+      iframe.width = "300";
+      iframe.height = "380";
+      iframe.frameBorder = "0";
+      iframe.allowtransparency = "true";
+      iframe.allow = "encrypted-media";
+      iframe.title = "spotify playlist";
+      const playlistRecommendationsContainer = document.getElementById("playlist-recommendations");
+      playlistRecommendationsContainer.innerHTML = "";
+      playlistRecommendationsContainer.appendChild(iframe);
+
+    }
+
+    function displayHistory() {
+      const historyContainer = document.getElementById('history');
+      historyContainer.innerHTML = '';
+      let moodHistory = JSON.parse(localStorage.getItem('moodHistory')) || [];
+      moodHistory.forEach((entry, index) => {
+        const div = document.createElement('div');
+        div.className = 'entry';
+        div.innerHTML = `
+        <div>
+            <small>${entry.time}</small>${entry.text}
+        </div>
+        <div class= "entry-actions">
+            <button class= "delete" onClick="deleteMood(${index})">Delete 🗑️</button>
+            <button class= "edit" onClick="editMood(${index})">Edit ✏️</button>
+        </div>
+            `
+   
+        historyContainer.appendChild(div);
+      });
+
+
+      
+    }
+function deleteMood(index){
+        let moodHistory = JSON.parse(localStorage.getItem("moodHistory")) || [];
+        if (confirm("Are You Sure you Want To Delete This Mood")) {
+            moodHistory.splice(index, 1);
+            localStorage.setItem('moodHistory', JSON.stringify(moodHistory));
+            displayHistory()
+        }
+        
+       
+      }
+
+      function editMood (index){
+        let moodHistory = JSON.parse(localStorage.getItem("moodHistory")) || [];
+        document.getElementById('moodText').value = moodHistory[index].text;
+        editingId = index;
+      }
+
+      function setReminder (){
+        const reminderTime = document.getElementById("reminder-time").value;
+        const reminderText = document.getElementById("reminder-time").value;
+        if (!reminderTime || !reminderText) return;
+        const reminder = {time: reminderTime, text: reminderText};
+        let reminders = JSON.parse(localStorage.getItem("reminders")) || [];
+        reminders.push(reminder);
+        localStorage.setItem('reminder', JSON.stringify(reminders));
+        checkReminders()
+      }
+
+      function checkReminders(){
+        let reminders = JSON.parse(localStorage.getItem("reminders")) || [];
+        const currentTime = new Date ().getTime();
+        reminders.forEach((reminder, index) => {
+          const reminderTime = new Date(reminder.time).getTime();
+          if (currentTime >= reminderTime) {
+            alert(reminder.text);
+            reminders.splice(index, 1);
+
+          }
+        });
+        localStorage.setItem('reminders', JSON.stringify(reminders))
+        setTimeout(checkReminders,60000);
+
+      }
+
+      // window.load = function(){
+      //   displayHistory();
+      //   checkReminders();
+      //   setInterval(checkReminders, 60000)
+      // }
+    
+    window.onload = displayHistory;
+   
+  </script>
+
+</body>
+</html>
